@@ -16,6 +16,8 @@ public final class ScreenCaptureRecordingController: NSObject, RecordingControll
     private var stream: SCStream?
     private var recordingOutput: SCRecordingOutput?
     private var currentSession: RecordingSession?
+    private var stoppingSession: RecordingSession?
+    private var stopContinuation: CheckedContinuation<RecordingSession, Error>?
 
     public override init() {
         super.init()
@@ -81,17 +83,18 @@ public final class ScreenCaptureRecordingController: NSObject, RecordingControll
         }
 
         stateDidChange?(.stopping(session))
+        stoppingSession = session
 
-        do {
-            try await stopCapture(stream)
-            currentSession = nil
-            recordingOutput = nil
-            self.stream = nil
-            stateDidChange?(.finished(session))
-            return session
-        } catch {
-            stateDidChange?(.failed(error.localizedDescription))
-            throw error
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<RecordingSession, Error>) in
+            stopContinuation = continuation
+
+            Task { @MainActor in
+                do {
+                    try await self.stopCapture(stream)
+                } catch {
+                    self.handleRecordingFailure(error)
+                }
+            }
         }
     }
 
@@ -154,17 +157,43 @@ public final class ScreenCaptureRecordingController: NSObject, RecordingControll
     }
 
     private func handleRecordingFailure(_ error: any Error) {
+        stopContinuation?.resume(throwing: error)
+        stopContinuation = nil
+        stoppingSession = nil
         currentSession = nil
         stream = nil
         recordingOutput = nil
         stateDidChange?(.failed(error.localizedDescription))
+    }
+
+    private func handleRecordingDidFinish() {
+        guard let session = stoppingSession ?? currentSession else {
+            stopContinuation = nil
+            stoppingSession = nil
+            currentSession = nil
+            stream = nil
+            recordingOutput = nil
+            return
+        }
+
+        stopContinuation?.resume(returning: session)
+        stopContinuation = nil
+        stoppingSession = nil
+        currentSession = nil
+        stream = nil
+        recordingOutput = nil
+        stateDidChange?(.finished(session))
     }
 }
 
 extension ScreenCaptureRecordingController: SCRecordingOutputDelegate {
     nonisolated public func recordingOutputDidStartRecording(_ recordingOutput: SCRecordingOutput) {}
 
-    nonisolated public func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) {}
+    nonisolated public func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) {
+        Task { @MainActor in
+            self.handleRecordingDidFinish()
+        }
+    }
 
     nonisolated public func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: any Error) {
         Task { @MainActor in

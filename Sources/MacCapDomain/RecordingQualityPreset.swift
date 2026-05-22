@@ -97,15 +97,6 @@ public enum RecordingQualityPreset: String, CaseIterable, Identifiable, Sendable
         return types.first ?? .h264
     }
 
-    public func estimatedVideoCodecLabel(supportedHEVC: Bool = true) -> String {
-        switch self {
-        case .compact:
-            "H.264"
-        case .balanced, .original:
-            supportedHEVC ? "HEVC" : "H.264"
-        }
-    }
-
     public func outputSize(for display: CaptureDisplay) -> (width: Int, height: Int) {
         let scaleFactor = usesRetinaScale ? max(display.scaleFactor, 1.0) : 1.0
         return (
@@ -114,7 +105,7 @@ public enum RecordingQualityPreset: String, CaseIterable, Identifiable, Sendable
         )
     }
 
-    public func specificationLine(for display: CaptureDisplay?) -> String {
+    public func specificationLine(for display: CaptureDisplay?, codecLabel: String) -> String {
         let resolutionText: String
         if let display {
             let size = outputSize(for: display)
@@ -123,6 +114,6 @@ public enum RecordingQualityPreset: String, CaseIterable, Identifiable, Sendable
             resolutionText = usesRetinaScale ? "Retina 기준 고해상도" : "디스플레이 기본 해상도"
         }
 
-        return "\(resolutionText) · \(frameRate)fps · \(estimatedVideoCodecLabel()) · \(storageProfile)"
+        return "\(resolutionText) · \(frameRate)fps · \(codecLabel) · \(storageProfile)"
     }
 }

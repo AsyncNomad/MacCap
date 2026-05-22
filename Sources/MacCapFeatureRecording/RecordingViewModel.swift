@@ -29,6 +29,7 @@ public final class RecordingViewModel: ObservableObject {
     private let preferencesStore: RecordingPreferencesStoring
     private let notifier: RecordingUserNotifying
     private let workspaceController: WorkspaceControlling
+    private let capabilityProvider: RecordingCapabilityProviding
     private var timer: Timer?
     private var activeSession: RecordingSession?
 
@@ -36,12 +37,14 @@ public final class RecordingViewModel: ObservableObject {
         controller: RecordingControlling = ScreenCaptureRecordingController(),
         preferencesStore: RecordingPreferencesStoring = UserDefaultsRecordingPreferencesStore(),
         notifier: RecordingUserNotifying = RecordingNotificationService(),
-        workspaceController: WorkspaceControlling = AppKitWorkspaceController()
+        workspaceController: WorkspaceControlling = AppKitWorkspaceController(),
+        capabilityProvider: RecordingCapabilityProviding = RecordingCapabilityProvider()
     ) {
         self.controller = controller
         self.preferencesStore = preferencesStore
         self.notifier = notifier
         self.workspaceController = workspaceController
+        self.capabilityProvider = capabilityProvider
         let preferences = preferencesStore.load()
         self.selectedDisplayID = preferences.selectedDisplayID
         self.includeMicrophone = preferences.includeMicrophone
@@ -243,11 +246,17 @@ public final class RecordingViewModel: ObservableObject {
     }
 
     public var selectedQualitySummary: String {
-        qualityPreset.specificationLine(for: selectedDisplay)
+        qualityPreset.specificationLine(
+            for: selectedDisplay,
+            codecLabel: capabilityProvider.preferredVideoCodecLabel(for: qualityPreset)
+        )
     }
 
     public func qualitySummary(for preset: RecordingQualityPreset) -> String {
-        preset.specificationLine(for: selectedDisplay)
+        preset.specificationLine(
+            for: selectedDisplay,
+            codecLabel: capabilityProvider.preferredVideoCodecLabel(for: preset)
+        )
     }
 
     private func persistPreferences() {

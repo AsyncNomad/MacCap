@@ -6,7 +6,12 @@ import SwiftUI
 final class RecordingStatusPanelController {
     private var panel: NSPanel?
 
-    func present(elapsedTimeText: String, includesMicrophone: Bool, stopAction: @escaping () -> Void) {
+    func present(
+        elapsedTimeText: String,
+        includesMicrophone: Bool,
+        displayID: UInt32,
+        stopAction: @escaping () -> Void
+    ) {
         let panel = panel ?? makePanel()
         self.panel = panel
 
@@ -18,7 +23,7 @@ final class RecordingStatusPanelController {
             )
         )
 
-        position(panel)
+        position(panel, displayID: displayID)
 
         if !panel.isVisible {
             panel.orderFrontRegardless()
@@ -49,8 +54,16 @@ final class RecordingStatusPanelController {
         return panel
     }
 
-    private func position(_ panel: NSPanel) {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else {
+    private func position(_ panel: NSPanel, displayID: UInt32) {
+        let matchingScreen = NSScreen.screens.first { screen in
+            guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return false
+            }
+
+            return screenNumber.uint32Value == displayID
+        }
+
+        guard let screen = matchingScreen ?? NSScreen.main ?? NSScreen.screens.first else {
             return
         }
 

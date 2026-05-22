@@ -104,6 +104,8 @@ public struct RecordingRootView: View {
             statusPanelController.present(
                 elapsedTimeText: viewModel.elapsedTimeText,
                 includesMicrophone: session.includesMicrophone
+                ,
+                displayID: session.display.displayID
             ) {
                 Task { await viewModel.toggleRecording() }
             }
